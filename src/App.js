@@ -1,25 +1,81 @@
-import logo from './logo.svg';
-import './App.css';
+import { useState, useRef } from 'react'
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  QueryClient,
+  QueryClientProvider,
+} from 'react-query'
+import { ReactQueryDevtools } from 'react-query/devtools'
+import { getTodos, postTodo } from './endpoints/todoActions'
+
+
+const queryClient = new QueryClient()
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    <QueryClientProvider client={ queryClient }>
+       <Todos />
+       <ReactQueryDevtools initialIsOpen={false} />
+     </QueryClientProvider>
+  )
 }
 
-export default App;
+function Todos() {
+  const [ todo, setTodo ] = useState({
+    title: ''
+  })
+  const inputRef = useRef()
+
+  const handleOnChange = e => {
+    const { name, value } = e.target 
+    setTodo({...todo, [name]: value})
+  }
+
+  const { isLoading, error, data, isFetching } = useQuery('todos', getTodos)
+
+  const queryClient = useQueryClient()
+
+  const mutation = useMutation(postTodo, {
+    onSuccess: () => {
+      queryClient.invalidateQueries('todos')
+    },
+  })
+
+  const addTodo = e => {
+    e.preventDefault()
+    mutation.mutate(todo)
+    setTodo({title: ''})
+    inputRef.current.value = ''
+  }
+  return (
+    <div>
+      <ul>
+        { data ? 
+        data.map(todo => (
+          <li key={todo.id}>{todo.title}</li>
+        ))
+        :
+        null}
+      </ul>
+      <div>{isFetching ? "Updating..." : ""}</div>
+      <div>{isLoading ? "Loading..." : ""}</div>
+      <div>{error ? "An error has occurred: " + error : ""}</div>
+      <input 
+        onChange={ handleOnChange } 
+        name='title'
+        value={ todo.title }
+        ref={inputRef}
+      />
+      <button
+        onClick={ addTodo }
+      >
+        Add Todo
+      </button>
+    </div>
+  )
+}
+
+
+export default App
+
